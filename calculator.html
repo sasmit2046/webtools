@@ -2,7 +2,7 @@
 <html lang="ne">
 <head>
 <meta charset="UTF-8">
-<title>Simple Calculator</title>
+<title>Full-Screen Calculator</title>
 <style>
 :root{
   --bg:#f0f2f5;
@@ -20,6 +20,7 @@ body{
   margin:0;
   background:var(--bg);
   color:var(--text);
+  height:100vh;
 }
 header,footer{
   background:var(--primary);
@@ -31,12 +32,14 @@ header h1{margin:0;font-size:24px;}
 .container{
   display:flex;
   justify-content:center;
-  padding:30px;
+  align-items:center;
+  height:calc(100vh - 120px);
+  padding:20px;
 }
 .card{
   background:var(--card);
   width:100%;
-  max-width:400px;
+  max-width:500px;
   border-radius:12px;
   box-shadow:0 6px 15px rgba(0,0,0,.15);
   padding:25px;
@@ -70,8 +73,17 @@ button.calc-btn{
 }
 button.calc-btn:hover{opacity:.9;}
 .toggle{
-  margin-top:15px;
+  margin-top:10px;
   background:#333;
+  color:white;
+  border:none;
+  padding:8px 18px;
+  border-radius:20px;
+  cursor:pointer;
+}
+.fullscreen-btn{
+  margin-top:10px;
+  background:#555;
   color:white;
   border:none;
   padding:8px 18px;
@@ -83,12 +95,12 @@ button.calc-btn:hover{opacity:.9;}
 <body>
 
 <header>
-  <h1>Calculator</h1>
+  <h1>Full-Screen Calculator</h1>
 </header>
 
 <div class="container">
   <div class="card">
-    <h2>Simple Calculator</h2>
+    <h2>Calculator</h2>
     
     <input type="text" id="display" readonly placeholder="0">
     
@@ -118,6 +130,7 @@ button.calc-btn:hover{opacity:.9;}
     
     <div style="text-align:center;">
       <button class="toggle" onclick="toggleDark()">🌙 Dark Mode</button>
+      <button class="fullscreen-btn" onclick="toggleFullScreen()">⛶ Full Screen</button>
     </div>
     
   </div>
@@ -184,6 +197,39 @@ function clearDisplay(){
 // ================= DARK MODE =================
 function toggleDark(){
   document.body.classList.toggle("dark");
+}
+
+// ================= KEYBOARD SUPPORT =================
+document.addEventListener("keydown", function(e){
+  if(e.key >= '0' && e.key <= '9'){
+    appendNumber(e.key);
+  }
+  if(e.code.startsWith("Numpad") && !isNaN(e.key)){
+    appendNumber(e.key);
+  }
+  if(e.key === '.' || e.key === 'Decimal'){
+    appendNumber('.');
+  }
+  if(e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/'){
+    chooseOperation(e.key);
+  }
+  if(e.key === 'Enter'){
+    compute();
+  }
+  if(e.key === 'Backspace' || e.key === 'Delete'){
+    clearDisplay();
+  }
+});
+
+// ================= FULL SCREEN =================
+function toggleFullScreen(){
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
 }
 </script>
 
