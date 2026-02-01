@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+<meta charset="UTF-8">
+<title>Simple Calculator</title>
+<style>
+:root{
+  --bg:#f0f2f5;
+  --card:#ffffff;
+  --text:#222;
+  --primary:#4CAF50;
+}
+body.dark{
+  --bg:#121212;
+  --card:#1e1e1e;
+  --text:#f1f1f1;
+}
+body{
+  font-family:"Kalimati","Mangal",Arial,sans-serif;
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+header,footer{
+  background:var(--primary);
+  color:white;
+  text-align:center;
+  padding:15px;
+}
+header h1{margin:0;font-size:24px;}
+.container{
+  display:flex;
+  justify-content:center;
+  padding:30px;
+}
+.card{
+  background:var(--card);
+  width:100%;
+  max-width:400px;
+  border-radius:12px;
+  box-shadow:0 6px 15px rgba(0,0,0,.15);
+  padding:25px;
+}
+h2{text-align:center;margin-bottom:20px;}
+#display{
+  width:95%;
+  height:60px;
+  font-size:24px;
+  padding:12px;
+  margin-bottom:15px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  text-align:right;
+  background:var(--card);
+  color:var(--text);
+}
+.buttons{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+button.calc-btn{
+  padding:20px;
+  font-size:20px;
+  border:none;
+  border-radius:8px;
+  background:var(--primary);
+  color:white;
+  cursor:pointer;
+}
+button.calc-btn:hover{opacity:.9;}
+.toggle{
+  margin-top:15px;
+  background:#333;
+  color:white;
+  border:none;
+  padding:8px 18px;
+  border-radius:20px;
+  cursor:pointer;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Calculator</h1>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Simple Calculator</h2>
+    
+    <input type="text" id="display" readonly placeholder="0">
+    
+    <div class="buttons">
+      <button class="calc-btn" onclick="appendNumber('7')">7</button>
+      <button class="calc-btn" onclick="appendNumber('8')">8</button>
+      <button class="calc-btn" onclick="appendNumber('9')">9</button>
+      <button class="calc-btn" onclick="chooseOperation('/')">÷</button>
+      
+      <button class="calc-btn" onclick="appendNumber('4')">4</button>
+      <button class="calc-btn" onclick="appendNumber('5')">5</button>
+      <button class="calc-btn" onclick="appendNumber('6')">6</button>
+      <button class="calc-btn" onclick="chooseOperation('*')">×</button>
+      
+      <button class="calc-btn" onclick="appendNumber('1')">1</button>
+      <button class="calc-btn" onclick="appendNumber('2')">2</button>
+      <button class="calc-btn" onclick="appendNumber('3')">3</button>
+      <button class="calc-btn" onclick="chooseOperation('-')">-</button>
+      
+      <button class="calc-btn" onclick="appendNumber('0')">0</button>
+      <button class="calc-btn" onclick="appendNumber('.')">.</button>
+      <button class="calc-btn" onclick="compute()">=</button>
+      <button class="calc-btn" onclick="chooseOperation('+')">+</button>
+      
+      <button class="calc-btn" style="grid-column:span 4;background:red;" onclick="clearDisplay()">C</button>
+    </div>
+    
+    <div style="text-align:center;">
+      <button class="toggle" onclick="toggleDark()">🌙 Dark Mode</button>
+    </div>
+    
+  </div>
+</div>
+
+<footer>
+  © 2026 Calculator
+</footer>
+
+<script>
+let currentOperand = '';
+let previousOperand = '';
+let operation = null;
+
+const display = document.getElementById('display');
+
+function appendNumber(number){
+  if(number === '.' && currentOperand.includes('.')) return;
+  currentOperand += number;
+  updateDisplay();
+}
+
+function chooseOperation(op){
+  if(currentOperand === '') return;
+  if(previousOperand !== ''){
+    compute();
+  }
+  operation = op;
+  previousOperand = currentOperand;
+  currentOperand = '';
+}
+
+function compute(){
+  let result;
+  const prev = parseFloat(previousOperand);
+  const curr = parseFloat(currentOperand);
+  if(isNaN(prev) || isNaN(curr)) return;
+  
+  switch(operation){
+    case '+': result = prev + curr; break;
+    case '-': result = prev - curr; break;
+    case '*': result = prev * curr; break;
+    case '/': result = prev / curr; break;
+    default: return;
+  }
+  
+  currentOperand = result.toString();
+  operation = null;
+  previousOperand = '';
+  updateDisplay();
+}
+
+function updateDisplay(){
+  display.value = currentOperand || '0';
+}
+
+function clearDisplay(){
+  currentOperand = '';
+  previousOperand = '';
+  operation = null;
+  updateDisplay();
+}
+
+// ================= DARK MODE =================
+function toggleDark(){
+  document.body.classList.toggle("dark");
+}
+</script>
+
+</body>
+</html>
