@@ -2,7 +2,7 @@
 <html lang="ne">
 <head>
 <meta charset="UTF-8">
-<title>Unicode ↔ Preeti Converter</title>
+<title>Nepali Typing Tools</title>
 
 <style>
 :root{
@@ -32,11 +32,10 @@ header,footer{
   padding:15px;
 }
 
-  header h1{
-    margin:0;
-    font-size:24px;
-  }
-
+header h1{
+  margin:0;
+  font-size:24px;
+}
 
 .container{
   display:flex;
@@ -47,179 +46,119 @@ header,footer{
 .card{
   background:var(--card);
   width:950px;
-  border-radius:12px;
+  border-radius:14px;
   box-shadow:0 6px 15px rgba(0,0,0,.15);
-  padding:25px;
+  padding:30px;
 }
 
-h2{text-align:center;margin-bottom:15px;}
-
-.top-actions{
-  display:flex;
-  justify-content:space-between;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-bottom:15px;
-}
-
-label{font-weight:bold;}
-
-.converter{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
-}
-
-textarea{
-  width:95%;
-  height:260px;
-  font-size:18px;
-  padding:15px;
-  border-radius:8px;
-  border:1px solid #ccc;
-  resize:none;
-  line-height:1.6;
-  background:var(--card);
-  color:var(--text);
-}
-
-.actions{
+h2{
   text-align:center;
-  margin-top:20px;
+  margin-bottom:25px;
 }
 
-button{
-  background:var(--primary);
+/* APP BOX LINKS */
+.app-links{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:22px;
+}
+
+.app-box{
+  background:var(--bg);
+  border-radius:16px;
+  padding:28px 20px;
+  text-align:center;
+  text-decoration:none;
+  color:var(--text);
+  box-shadow:0 4px 12px rgba(0,0,0,.12);
+  transition:.25s ease;
+}
+
+.app-box:hover{
+  transform:translateY(-6px);
+  box-shadow:0 10px 22px rgba(0,0,0,.22);
+}
+
+.icon{
+  font-size:42px;
+  margin-bottom:12px;
+}
+
+.title{
+  font-size:18px;
+  font-weight:bold;
+  margin-bottom:6px;
+}
+
+.desc{
+  font-size:14px;
+  opacity:.8;
+}
+
+/* DARK MODE BUTTON */
+.toggle{
+  margin-top:20px;
+  background:#333;
   color:white;
   border:none;
-  padding:10px 18px;
-  font-size:15px;
-  border-radius:6px;
+  padding:8px 16px;
+  border-radius:20px;
   cursor:pointer;
-  margin:5px;
 }
 
-.toggle{
-  background:#333;
-}
+.toggle:hover{opacity:.9;}
 
-button:hover{opacity:.9;}
+footer{
+  font-size:14px;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-  <h1>Unicode ↔ Preeti Converter</h1>
+  <h1>Nepali Typing Tools</h1>
 </header>
 
 <div class="container">
   <div class="card">
 
-    <h2>Nepali Font Converter</h2>
+    <h2>Select Tool</h2>
 
-    <div class="top-actions">
-      <label>
-        <input type="checkbox" id="autoConvert" checked>
-        Auto Convert While Typing
-      </label>
+    <div class="app-links">
 
+      <a href="typeshala.html" class="app-box">
+        <div class="icon">⌨️</div>
+        <div class="title">TypeShala</div>
+        <div class="desc">Nepali Typing Practice</div>
+      </a>
+
+      <a href="unicode-to-preeti.html" class="app-box">
+        <div class="icon">🔤</div>
+        <div class="title">Unicode → Preeti</div>
+        <div class="desc">Convert Unicode to Preeti</div>
+      </a>
+
+      <a href="preeti-to-unicode.html" class="app-box">
+        <div class="icon">🔁</div>
+        <div class="title">Preeti → Unicode</div>
+        <div class="desc">Convert Preeti to Unicode</div>
+      </a>
+
+    </div>
+
+    <div style="text-align:center;">
       <button class="toggle" onclick="toggleDark()">🌙 Dark Mode</button>
-    </div>
-
-    <div class="converter">
-      <div>
-        <label>Unicode Nepali</label>
-        <textarea id="unicodeInput" placeholder="यहाँ Unicode नेपाली लेख्नुहोस्..."></textarea>
-      </div>
-
-      <div>
-        <label>Preeti Font</label>
-        <textarea id="preetiOutput" placeholder="यहाँ Preeti देखिन्छ..." readonly></textarea>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button onclick="convertUnicodeToPreeti()">Convert</button>
-      <button onclick="copyText()">Copy</button>
-      <button onclick="exportWord()">Export Word</button>
-      <button onclick="exportPDF()">Export PDF</button>
-      <button onclick="clearAll()">Clear</button>
     </div>
 
   </div>
 </div>
 
 <footer>
-  © 2026 Unicode ↔ Preeti Converter
+  © 2026 Nepali Typing Tools
 </footer>
 
 <script>
-// ================= UNICODE → PREETI MAP =================
-const unicodeToPreetiMap = {
-  'अ':'c','आ':'cf','इ':'O','ई':'O{','उ':'p','ऊ':'p]',
-  'ए':'P','ऐ':'P]','ओ':'C','औ':'C]',
-
-  'क':'s','ख':'v','ग':'u','घ':'3','ङ':'ª',
-  'च':'r','छ':'5','ज':'h','झ':'H','ञ':'`',
-  'ट':'6','ठ':'7','ड':'8','ढ':'9','ण':'0',
-  'त':'t','थ':'y','द':'b','ध':'w','न':'g',
-  'प':'k','फ':'km','ब':'a','भ':'e','म':'d',
-  'य':'o','र':'/','ल':'n','व':'j',
-  'श':'z','ष':'if','स':';','ह':'x',
-
-  'ा':'f','ि':'l','ी':'L','ु':'\'','ू':'"',
-  'े':'e','ै':'E','ो':'}','ौ':']',
-  'ं':'M','्':'F','।':'|',
-
-  '०':'0','१':'1','२':'2','३':'3','४':'4',
-  '५':'5','६':'6','७':'7','८':'8','९':'9'
-};
-
-function unicodeToPreeti(text){
-  let out='';
-  for(let ch of text){
-    out += unicodeToPreetiMap[ch] || ch;
-  }
-  return out;
-}
-
-function convertUnicodeToPreeti(){
-  preetiOutput.value = unicodeToPreeti(unicodeInput.value);
-}
-
-unicodeInput.addEventListener("input",()=>{
-  if(autoConvert.checked) convertUnicodeToPreeti();
-});
-
-// ================= UTILITIES =================
-function copyText(){
-  preetiOutput.select();
-  document.execCommand("copy");
-  alert("Copied!");
-}
-
-function clearAll(){
-  unicodeInput.value='';
-  preetiOutput.value='';
-}
-
-// ================= EXPORT =================
-function exportWord(){
-  let blob = new Blob([preetiOutput.value], {type:"application/msword"});
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download="preeti.doc";
-  a.click();
-}
-
-function exportPDF(){
-  let win = window.open('');
-  win.document.write(`<pre>${preetiOutput.value}</pre>`);
-  win.print();
-}
-
-// ================= DARK MODE =================
 function toggleDark(){
   document.body.classList.toggle("dark");
 }
