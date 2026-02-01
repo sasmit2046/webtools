@@ -199,28 +199,6 @@ function toggleDark(){
   document.body.classList.toggle("dark");
 }
 
-// ================= KEYBOARD SUPPORT =================
-document.addEventListener("keydown", function(e){
-  if(e.key >= '0' && e.key <= '9'){
-    appendNumber(e.key);
-  }
-  if(e.code.startsWith("Numpad") && !isNaN(e.key)){
-    appendNumber(e.key);
-  }
-  if(e.key === '.' || e.key === 'Decimal'){
-    appendNumber('.');
-  }
-  if(e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/'){
-    chooseOperation(e.key);
-  }
-  if(e.key === 'Enter'){
-    compute();
-  }
-  if(e.key === 'Backspace' || e.key === 'Delete'){
-    clearDisplay();
-  }
-});
-
 // ================= FULL SCREEN =================
 function toggleFullScreen(){
   if (!document.fullscreenElement) {
@@ -231,6 +209,40 @@ function toggleFullScreen(){
     }
   }
 }
+
+// ================= KEYBOARD SUPPORT =================
+document.addEventListener("keydown", function(e){
+  // Numbers 0-9 and Numpad
+  if((e.key >= '0' && e.key <= '9') || (e.key >= '0' && e.key <= '9')){
+    appendNumber(e.key);
+    e.preventDefault();
+    return;
+  }
+  // Decimal
+  if(e.key === '.'){
+    appendNumber('.');
+    e.preventDefault();
+    return;
+  }
+  // Operations
+  if(['+','-','*','/'].includes(e.key)){
+    chooseOperation(e.key);
+    e.preventDefault();
+    return;
+  }
+  // Enter = compute
+  if(e.key === 'Enter'){
+    compute();
+    e.preventDefault();
+    return;
+  }
+  // Backspace/Delete = Clear
+  if(e.key === 'Backspace' || e.key === 'Delete'){
+    clearDisplay();
+    e.preventDefault();
+    return;
+  }
+});
 </script>
 
 </body>
