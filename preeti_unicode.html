@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ne">
+<head>
+<meta charset="UTF-8">
+<title>Preeti to Unicode Converter</title>
+
+<style>
+  body{
+    font-family:"Kalimati","Mangal",Arial,sans-serif;
+    margin:0;
+    background:#f0f2f5;
+  }
+
+  header,footer{
+    background:#4CAF50;
+    color:white;
+    text-align:center;
+    padding:15px;
+  }
+
+  header h1{
+    margin:0;
+    font-size:24px;
+  }
+
+  .container{
+    display:flex;
+    justify-content:center;
+    padding:30px;
+  }
+
+  .card{
+    background:white;
+    width:900px;
+    border-radius:12px;
+    box-shadow:0 6px 15px rgba(0,0,0,.15);
+    padding:25px;
+  }
+
+  .card h2{
+    text-align:center;
+    margin-bottom:20px;
+    color:#333;
+  }
+
+  .converter{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+
+  textarea{
+    width:95%;
+    height:260px;
+    font-size:18px;
+    padding:15px;
+    border-radius:8px;
+    border:1px solid #ccc;
+    resize:none;
+    line-height:1.6;
+  }
+
+  textarea:focus{
+    outline:none;
+    border-color:#4CAF50;
+  }
+
+  .label{
+    font-weight:bold;
+    margin-bottom:6px;
+    display:block;
+  }
+
+  .actions{
+    text-align:center;
+    margin-top:20px;
+  }
+
+  button{
+    background:#4CAF50;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    font-size:16px;
+    border-radius:6px;
+    cursor:pointer;
+    margin:5px;
+  }
+
+  button:hover{
+    background:#43a047;
+  }
+
+  footer{
+    font-size:14px;
+  }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Preeti Font to Unicode Nepali Converter</h1>
+</header>
+
+<div class="container">
+  <div class="card">
+    <h2>Word Preeti → Unicode Nepali</h2>
+
+    <div class="converter">
+      <div>
+        <label class="label">Preeti (Type from MS Word)</label>
+        <textarea id="preetiInput" placeholder="यहाँ Preeti font को text paste गर्नुहोस्..."></textarea>
+      </div>
+
+      <div>
+        <label class="label">Unicode Nepali Output</label>
+        <textarea id="unicodeOutput" placeholder="यहाँ Unicode नेपाली देखिन्छ..." readonly></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="convertBtn">Convert</button>
+      <button onclick="copyUnicode()">Copy Unicode</button>
+      <button onclick="clearAll()">Clear</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  © 2026 Preeti to Unicode Converter | Nepali Language Tool
+</footer>
+
+<script>
+// ================= PREETI → UNICODE ==================
+
+const preetiMap = {
+  // Vowels
+  'c':'अ','cf':'आ','O':'इ','O{':'ई','p':'उ','p]':'ऊ',
+  'P':'ए','P]':'ऐ','C':'ओ','C]':'औ',
+
+  // Consonants
+  's':'क','v':'ख','u':'ग','3':'घ','ª':'ङ',
+  'r':'च','5':'छ','h':'ज','H':'झ','`':'ञ',
+  '6':'ट','7':'ठ','8':'ड','9':'ढ','0':'ण',
+  't':'त','y':'थ','b':'द','w':'ध','g':'न',
+  'k':'प','km':'फ','a':'ब','e':'भ','d':'म',
+  'o':'य','/':'र','n':'ल','j':'व',
+  'z':'श','if':'ष',';':'स','x':'ह',
+
+  // Matras
+  'f':'ा','l':'ि','L':'ी','\'':'ु','"':'ू',
+  'e':'े','E':'ै','}':'ो',']':'ौ',
+  'M':'ं','ँ':'ँ','F':'्',
+
+  // Numbers
+  '1':'१','2':'२','3':'३','4':'४','5':'५',
+  '6':'६','7':'७','8':'८','9':'९','0':'०',
+
+  // Symbols
+  '|':'।','<':',','>':'.','?':'?',' ':' '
+};
+
+// Fix "ि" position
+function reorderI(text){
+  return text.replace(/([क-ह])ि/g,'ि$1');
+}
+
+function preetiToUnicode(text){
+  let result='';
+  for(let i=0;i<text.length;i++){
+    let two=text.substr(i,2);
+    let one=text[i];
+
+    if(preetiMap[two]){
+      result+=preetiMap[two];
+      i++;
+    }else if(preetiMap[one]){
+      result+=preetiMap[one];
+    }else{
+      result+=one;
+    }
+  }
+  return reorderI(result);
+}
+
+document.getElementById("convertBtn").onclick=()=>{
+  document.getElementById("unicodeOutput").value =
+    preetiToUnicode(document.getElementById("preetiInput").value);
+};
+
+function copyUnicode(){
+  let out=document.getElementById("unicodeOutput");
+  out.select();
+  document.execCommand("copy");
+  alert("Unicode text copied!");
+}
+
+function clearAll(){
+  document.getElementById("preetiInput").value='';
+  document.getElementById("unicodeOutput").value='';
+}
+</script>
+
+</body>
+</html>
