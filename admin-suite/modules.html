@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module Builder</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="app.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('modules'); } catch (e) { return; }
+  const main = $id('main'), FT = ['text', 'number', 'email', 'date', 'textarea', 'select', 'checkbox'];
+  setTitle('Module Builder', 'Create unlimited CRUD modules without writing code');
+  if (B.user.role !== 'admin') { main.innerHTML = '<div class="card empty">Only administrators can open this page.</div>'; return; }
+
+  async function reload() { try { B = await freshBoot(); renderSide(B, 'modules'); } catch (e) { fail(e); } draw(); }
+  function draw() {
+    main.innerHTML = '<div class="card"><div class="bar"><h2>Modules (' + B.modules.length + ')</h2><span class="sp"></span><button class="btn" id="nw">+ New Module</button></div><div class="tw"><table class="tbl"><tr><th>Module</th><th>Fields</th><th>Type</th><th class="ta">Action</th></tr>' +
+      B.modules.map((m, i) => '<tr><td><b>' + H(m.icon + ' ' + m.name) + '</b></td><td>' + m.fields.map(f => H(f.label)).join(', ') + '</td><td>' + (m.builtin ? '<span class="pill">Built-in</span>' : 'Custom') + '</td><td class="ta">' +
+        (m.builtin ? '' : '<button class="ebtn" data-e="' + i + '">&#9998; Edit</button> <button class="dbtn" data-d="' + i + '">&#128465; Delete</button>') + '</td></tr>').join('') + '</table></div></div>' +
+      '<div class="card"><b>How it works:</b> each module gets its own tab in your Google Sheet. After creating a module, open <b>Roles &amp; Access</b> to choose which roles can view, create, edit or delete its records.</div>';
+    $id('nw').onclick = () => mb();
+    main.querySelectorAll('[data-e]').forEach(b => b.onclick = () => mb(B.modules[b.dataset.e]));
+    main.querySelectorAll('[data-d]').forEach(b => b.onclick = () => {
+      const m = B.modules[b.dataset.d];
+      confirmBox('Delete module?', 'This deletes "' + m.name + '" and ALL of its records permanently.', 'Delete module', async () => {
+        try { await post({ mode: 'modDelete', id: m.id }); toast('Module deleted'); reload(); } catch (e) { fail(e); }
+      });
+    });
+  }
+
+  function mb(m) {
+    m = m || { name: '', icon: '\uD83D\uDCC4', fields: [{ label: '', type: 'text' }] };
+    const fr = f => '<tr class="fr" data-k="' + H(f.key || '') + '"><td><input class="fl" placeholder="Field label" value="' + H(f.label) + '" style="margin:0"></td><td><select class="ft" style="margin:0">' + FT.map(t => '<option' + (t === f.type ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></td><td><input class="fo" placeholder="opt1, opt2" value="' + H(f.options) + '" style="margin:0"></td><td class="ta"><input type="checkbox" class="fq pc"' + (f.required ? ' checked' : '') + '></td><td class="ta"><button type="button" class="dbtn" onclick="this.closest(\'tr\').remove()">&#10005;</button></td></tr>';
+    const o = modal('<form id="mf"><div class="mh"><h3>' + (m.id ? 'Edit' : 'New') + ' module</h3><button type="button" class="x" data-close>&times;</button></div>' +
+      '<div style="display:flex;gap:12px"><div style="flex:1"><label>Module name *</label><input id="mn" value="' + H(m.name) + '" required></div><div style="width:100px"><label>Icon</label><input id="mi" value="' + H(m.icon) + '"></div></div>' +
+      '<label>Fields (for "select" type, list the options separated by commas)</label><div class="tw"><table class="tbl" id="ftb"><tr><th>Label</th><th>Type</th><th>Options</th><th class="ta">Req.</th><th></th></tr>' + m.fields.map(fr).join('') + '</table></div>' +
+      '<button type="button" class="btn g" id="af" style="margin:10px 0 18px">+ Add field</button><div class="acts"><button type="button" class="btn g" data-close>Cancel</button><button class="btn" id="sv">Save module</button></div></form>', true);
+    o.querySelector('#af').onclick = () => o.querySelector('#ftb tbody').insertAdjacentHTML('beforeend', fr({ label: '', type: 'text' }));
+    o.querySelector('#mf').onsubmit = async e => {
+      e.preventDefault(); const b = o.querySelector('#sv'); b.disabled = true; b.textContent = 'Saving...';
+      const fields = [...o.querySelectorAll('.fr')].map(t => ({ key: t.dataset.k, label: t.querySelector('.fl').value, type: t.querySelector('.ft').value, options: t.querySelector('.fo').value, required: t.querySelector('.fq').checked }));
+      try { await post({ mode: 'modSave', id: m.id || '', name: o.querySelector('#mn').value, icon: o.querySelector('#mi').value, fields: JSON.stringify(fields) }); o.remove(); toast('Module saved'); reload(); }
+      catch (err) { fail(err); b.disabled = false; b.textContent = 'Save module'; }
+    };
+  }
+  draw();
+})();
+</script>
+</body>
+</html>

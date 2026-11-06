@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in</title>
+<style>
+:root{--p:#4f46e5;--p2:#7c3aed;--tx:#111827;--mu:#6b7280;--bd:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;font:15px/1.5 'Segoe UI',system-ui,Roboto,sans-serif;color:var(--tx);background:linear-gradient(135deg,var(--p),var(--p2))}
+.card{background:#fff;border-radius:18px;padding:34px;width:100%;max-width:380px;box-shadow:0 25px 60px rgba(0,0,0,.3)}
+.logo{width:56px;height:56px;border-radius:16px;background:#ede9fe;display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px}
+h2{margin:0 0 4px;font-size:24px}p{margin:0 0 22px;color:var(--mu)}
+label{display:block;font-size:13px;font-weight:600;color:var(--mu);margin-bottom:4px}
+input{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;font:inherit;margin-bottom:14px;outline:none;transition:border .15s,box-shadow .15s}
+input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(79,70,229,.15)}
+.err{color:#dc2626;font-size:13px;min-height:20px;margin-bottom:8px}
+button{width:100%;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border:0;border-radius:10px;padding:11px 20px;font:inherit;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(79,70,229,.35)}
+button:disabled{opacity:.6;cursor:wait}
+</style>
+</head>
+<body>
+<form id="f" class="card">
+  <div class="logo">&#128274;</div>
+  <h2>Welcome back</h2>
+  <p>Sign in to view contact messages</p>
+  <label for="u">Username</label>
+  <input id="u" autocomplete="username" required autofocus>
+  <label for="pw">Password</label>
+  <input id="pw" type="password" autocomplete="current-password" required>
+  <div class="err" id="err"></div>
+  <button id="go">Sign in</button>
+</form>
+
+<script>
+const scriptURL = 'https://script.google.com/macros/s/AKfycbzfl-S3I31Dl2ns2JMoF4WBFop3LaTMgb1d5a2b928d3vKfq4ZmoH1dRIYT3DBoxH1D/exec';
+const HOME = 'dashboard.html';   // page to open after login (same folder)
+
+const err = document.getElementById('err'), go = document.getElementById('go');
+if (location.hash === '#expired') err.textContent = 'Session expired. Please sign in again.';
+
+function enter(token, name){
+  location.replace(encodeURI(HOME) + '#t=' + encodeURIComponent(token) + '&n=' + encodeURIComponent(name || ''));
+}
+// already signed in on this tab? go straight to the page
+if (sessionStorage.getItem('tk') && location.hash !== '#expired') enter(sessionStorage.getItem('tk'), sessionStorage.getItem('who'));
+
+document.getElementById('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  err.textContent = ''; go.disabled = true; go.textContent = 'Signing in...';
+  const u = document.getElementById('u').value;
+  try {
+    const fd = new FormData();
+    fd.append('mode', 'login'); fd.append('username', u); fd.append('password', document.getElementById('pw').value);
+    const j = await (await fetch(scriptURL, { method: 'POST', body: fd })).json();
+    if (j.result !== 'success') throw new Error(j.error || 'Login failed');
+    enter(j.token, j.name || u);
+  } catch (ex) {
+    err.textContent = (ex instanceof SyntaxError || ex instanceof TypeError) ? 'Could not reach the server. Please try again.' : ex.message;
+    go.disabled = false; go.textContent = 'Sign in';
+  }
+});
+</script>
+</body>
+</html>
