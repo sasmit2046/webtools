@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Suite</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('dashboard'); } catch (e) { return; }
+  const main = $id('main');
+  setTitle('Dashboard', 'Welcome back, ' + who + ' \u00b7 ' + new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+  if (!B.modules.length) {
+    main.innerHTML = '<div class="card empty">No modules are available for your role yet.' + (B.user.role === 'admin' ? ' <a href="#" data-go="modules.html">Create one in the Module Builder</a>.' : '') + '</div>';
+    bindGo(main); return;
+  }
+  main.innerHTML = `<div class="bar"><h2>Overview</h2><span class="sp"></span><select id="dm" class="sel">${B.modules.map(m => '<option value="' + H(m.slug) + '">' + H(m.icon + ' ' + m.name) + '</option>').join('')}</select></div>
+  <div class="kpis">
+    <div class="kpi"><div class="ki" style="--c:#4f46e5">&#128203;</div><div><small>Total records</small><b id="k1">&ndash;</b><em>In this module</em></div></div>
+    <div class="kpi"><div class="ki" style="--c:#16a34a">&#9733;</div><div><small>Today</small><b id="k2">&ndash;</b><em id="k2s">New records today</em></div></div>
+    <div class="kpi"><div class="ki" style="--c:#0284c7">&#128197;</div><div><small>Last 7 days</small><b id="k3">&ndash;</b><em id="k3s">New records this week</em></div></div>
+    <div class="kpi"><div class="ki" style="--c:#f59e0b" id="k4i">&#128101;</div><div><small id="k4t">Unique contacts</small><b id="k4">&ndash;</b><em id="k4s"></em></div></div>
+  </div>
+  <div class="row2">
+    <div class="card"><div class="ch"><h3 id="chT">Activity</h3><span id="chSub"></span></div><div class="chart" id="chart"></div></div>
+    <div class="card"><div class="ch"><h3>Recent records</h3><span>Click to open</span></div><ul class="recent" id="recent"></ul></div>
+  </div>
+  <div class="card"><div class="ch"><h3>Quick access</h3></div><div class="tiles">${B.modules.map(m => '<a href="#" class="tile" data-go="crud.html?m=' + encodeURIComponent(m.slug) + '"><i>' + H(m.icon || '\uD83D\uDCC4') + '</i><div>' + H(m.name) + '<small>' + m.fields.length + ' fields</small></div></a>').join('')}</div></div>`;
+  bindGo(main);
+
+  const set = (id, v) => $id(id).textContent = v;
+  const pd = v => { if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; };
+  const dk = d => d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+  let rows = [], mod = null;
+
+  async function load(slug) {
+    mod = B.modules.find(m => m.slug === slug);
+    $id('chart').innerHTML = '<div class="empty" style="width:100%">Loading...</div>';
+    try { rows = (await get({ action: 'list', module: slug })).data; } catch (e) { fail(e); return; }
+    const now = new Date(), start7 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+    const dated = rows.map(r => ({ r: r, d: pd(r.Date) })), hasDate = dated.some(x => x.d);
+    set('k1', rows.length);
+    set('k2', hasDate ? dated.filter(x => x.d && dk(x.d) === dk(now)).length : '\u2014');
+    set('k3', hasDate ? dated.filter(x => x.d && x.d >= start7).length : '\u2014');
+    set('k2s', hasDate ? 'New records today' : 'Needs a "Date" column'); set('k3s', hasDate ? 'New records this week' : 'Needs a "Date" column');
+    const em = mod.fields.find(f => f.type === 'email');
+    if (em) { set('k4t', 'Unique ' + em.label.toLowerCase() + 's'); set('k4', new Set(rows.map(r => String(r[em.key] || '').trim().toLowerCase()).filter(Boolean)).size); set('k4s', 'Different values'); }
+    else { set('k4t', 'Fields'); set('k4', mod.fields.length); set('k4s', 'In this module'); }
+    let items = [];
+    if (hasDate) {
+      for (let i = 13; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i); items.push({ k: dk(d), label: String(d.getDate()), tip: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), v: 0 }); }
+      const m = {}; items.forEach(x => m[x.k] = x); dated.forEach(x => { if (x.d && m[dk(x.d)]) m[dk(x.d)].v++; });
+      set('chT', 'Records per day'); set('chSub', 'Last 14 days');
+    } else {
+      const gf = mod.fields.find(f => f.type === 'select') || em, c = {};
+      if (gf) rows.forEach(r => { let k = String(r[gf.key] || '').trim(); if (gf.type === 'email') k = k.split('@')[1] || ''; if (k) { k = k.toLowerCase(); c[k] = (c[k] || 0) + 1; } });
+      items = Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => ({ label: e[0], tip: e[0], v: e[1] }));
+      set('chT', gf ? 'Top ' + (gf.type === 'email' ? 'email domains' : gf.label.toLowerCase() + ' values') : 'Activity'); set('chSub', 'Add a "Date" column for daily activity');
+    }
+    const max = Math.max(1, ...items.map(x => x.v));
+    $id('chart').innerHTML = items.length ? items.map(x => '<div class="cb" title="' + H(x.tip) + ': ' + x.v + '"><div class="bw"><b>' + (x.v || '') + '</b><i style="height:' + (x.v ? Math.max(x.v / max * 80, 4) : 1) + '%"></i></div><span>' + H(x.label) + '</span></div>').join('') : '<div class="empty" style="width:100%">No data yet</div>';
+    const f1 = mod.fields[0], f2 = mod.fields.find(f => f.type === 'textarea') || em || mod.fields[1];
+    const rec = rows.slice().sort((a, b) => Number(b.ID) - Number(a.ID)).slice(0, 6);
+    $id('recent').innerHTML = rec.length ? rec.map(r => '<li data-id="' + H(r.ID) + '"><span class="av">' + H(String(f1 ? r[f1.key] || '?' : '?').charAt(0)) + '</span><div><b>' + H(f1 ? r[f1.key] || '(empty)' : r.ID) + '</b><small>' + H(f2 ? r[f2.key] || '' : '') + '</small></div></li>').join('') : '<li class="empty">No records yet</li>';
+  }
+  $id('recent').addEventListener('click', e => { if (e.target.closest('li[data-id]')) nav('crud.html?m=' + encodeURIComponent(mod.slug)); });
+  $id('dm').onchange = e => load(e.target.value);
+  load(B.modules[0].slug);
+})();
+</script>
+</body>
+</html>

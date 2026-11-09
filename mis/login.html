@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in</title>
+<script src="theme.js"></script>
+<style>
+:root{--p:#4f46e5;--p2:#4338ca;--bg:#f4f6fa;--card:#fff;--tx:#0f172a;--mu:#64748b;--bd:#e2e8f0;--inp:#fff;--inpbd:#94a3b8}
+[data-theme=dark]{--p:#6366f1;--p2:#818cf8;--bg:#0b1120;--card:#111a2e;--tx:#e5e7eb;--mu:#94a3b8;--bd:#1f2a44;--inp:#0b1120;--inpbd:#334155;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 'Segoe UI',system-ui,Roboto,sans-serif;color:var(--tx);background:var(--bg)}
+.wrap{display:grid;grid-template-columns:1.05fr 1fr;min-height:100vh}
+.left{background:var(--p);color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:space-between}
+.lgbox{width:128px;height:128px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;padding:14px}
+.lgbox img{width:100%;height:100%;object-fit:contain}
+.org{text-transform:uppercase;letter-spacing:.14em;font-size:13px;font-weight:700;opacity:.92;margin:22px 0 6px}
+.left h1{font-size:38px;line-height:1.15;margin:0 0 8px}.left .tg{font-size:17px;opacity:.9;margin:0}
+.left .ft{font-size:13px;opacity:.8}
+.right{display:flex;align-items:center;justify-content:center;padding:32px;position:relative}
+.fw{width:100%;max-width:380px}
+h2{margin:0 0 4px;font-size:26px}.sub{margin:0 0 24px;color:var(--mu)}
+label{display:block;font-size:13px;font-weight:700;color:var(--mu);margin-bottom:4px}
+input{width:100%;padding:11px 12px;border:1px solid var(--inpbd);border-radius:10px;font:inherit;margin-bottom:14px;outline:none;background:var(--inp);color:var(--tx)}
+input:focus{border-color:var(--p)}
+.err{color:#ef4444;font-size:13px;min-height:20px;margin-bottom:8px;font-weight:600}
+button.go{width:100%;background:var(--p);color:#fff;border:0;border-radius:10px;padding:12px 20px;font:inherit;font-weight:700;cursor:pointer}
+button.go:hover{background:var(--p2)}button.go:disabled{opacity:.6;cursor:wait}
+.tt{position:absolute;top:16px;right:16px;background:var(--card);border:1px solid var(--inpbd);border-radius:10px;font-size:18px;line-height:1;padding:8px 12px;cursor:pointer;color:var(--tx)}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}.left{padding:28px;min-height:auto;gap:18px}.lgbox{width:88px;height:88px;padding:10px}.left h1{font-size:26px}.org{margin-top:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="left">
+    <div>
+      <div class="lgbox"><img id="lg" alt="Logo"></div>
+      <div class="org" id="org"></div>
+      <h1 id="an"></h1>
+      <p class="tg" id="tg"></p>
+    </div>
+    <div class="ft" id="ft"></div>
+  </section>
+  <section class="right">
+    <button class="tt" id="tt" type="button" title="Switch light / dark theme"></button>
+    <form id="f" class="fw">
+      <h2 id="lt"></h2>
+      <p class="sub" id="ltx"></p>
+      <label for="u">Username</label>
+      <input id="u" autocomplete="username" required autofocus>
+      <label for="pw">Password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <div class="err" id="err"></div>
+      <button class="go" id="go">Sign in</button>
+    </form>
+  </section>
+</div>
+
+<script src="config.js"></script>
+<script>
+const HOME = 'dashboard.html';   // page to open after login (same folder)
+const $ = id => document.getElementById(id);
+// neutral placeholder logo, used when there is no uploaded logo and no logo.png file in this folder
+const PH = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#e2e8f0"/><path d="M32 12 10 24h44L32 12Zm-18 14v22h6V26h-6Zm10 0v22h6V26h-6Zm10 0v22h6V26h-6Zm10 0v22h6V26h-6ZM10 50v4h44v-4H10Z" fill="#64748b"/></svg>');
+const DEF = { appName: 'Admin Suite', tagline: 'Control Panel', org: 'Government of Nepal', loginTitle: 'Welcome back', loginText: 'Sign in to continue to your dashboard.', footer: '', logo: '' };
+
+function render(b) {
+  b = Object.assign({}, DEF, b || {});
+  $('an').textContent = b.appName; $('tg').textContent = b.tagline; $('org').textContent = b.org; $('ft').textContent = b.footer;
+  $('lt').textContent = b.loginTitle; $('ltx').textContent = b.loginText; document.title = 'Sign in \u00b7 ' + b.appName;
+  const i = $('lg'); i.onerror = () => { i.onerror = null; i.src = PH; };
+  const src = b.logo || 'logo.png'; if (i.getAttribute('src') !== src) i.src = src;
+}
+let cached = null; try { cached = JSON.parse(localStorage.getItem('brand') || 'null'); } catch (e) {}
+render(cached);
+fetch(scriptURL + '?action=public').then(r => r.json()).then(j => {
+  if (!j.brand) return;
+  try { localStorage.setItem('brand', JSON.stringify(j.brand)); } catch (e) {}
+  applyBrand(j.brand); render(j.brand);
+  if (!localStorage.getItem('theme') && j.brand.mode) { document.documentElement.setAttribute('data-theme', j.brand.mode); themeIcon(); }
+}).catch(() => {});
+
+$('tt').onclick = toggleTheme; themeIcon();
+const err = $('err'), go = $('go');
+if (location.hash === '#expired') err.textContent = 'Session expired. Please sign in again.';
+
+function enter(token, name) {
+  location.replace(encodeURI(HOME) + '#t=' + encodeURIComponent(token) + '&n=' + encodeURIComponent(name || '') + '&th=' + document.documentElement.getAttribute('data-theme'));
+}
+if (sessionStorage.getItem('tk') && location.hash !== '#expired') enter(sessionStorage.getItem('tk'), sessionStorage.getItem('who'));
+
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  err.textContent = ''; go.disabled = true; go.textContent = 'Signing in...';
+  const u = $('u').value;
+  try {
+    const fd = new FormData();
+    fd.append('mode', 'login'); fd.append('username', u); fd.append('password', $('pw').value);
+    const j = await (await fetch(scriptURL, { method: 'POST', body: fd })).json();
+    if (j.result !== 'success') throw new Error(j.error || 'Login failed');
+    enter(j.token, j.name || u);
+  } catch (ex) {
+    err.textContent = (ex instanceof SyntaxError || ex instanceof TypeError) ? 'Could not reach the server. Please try again.' : ex.message;
+    go.disabled = false; go.textContent = 'Sign in';
+  }
+});
+</script>
+</body>
+</html>

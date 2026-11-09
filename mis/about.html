@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="version.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('about'); } catch (e) { return; }
+  setTitle('About', 'Version and release history');
+  try { B = await freshBoot(); } catch (e) {}
+  const br = B.brand || {}, same = B.version === APP_VERSION;
+  $id('main').innerHTML =
+    '<div class="card"><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">' + (br.logo ? '<img src="' + H(br.logo) + '" alt="" style="width:72px;height:72px;object-fit:contain;border:1px solid var(--bd);border-radius:14px;background:#fff;padding:4px">' : '<div class="av" style="width:72px;height:72px;border-radius:16px;font-size:30px">&#9889;</div>') +
+    '<div style="flex:1;min-width:200px"><h2>' + H(br.appName || 'Admin Suite') + '</h2><div class="mu">' + H(br.org || '') + '</div><div style="margin-top:8px"><span class="pill">Version ' + H(APP_VERSION) + '</span> <span class="pill">Backend ' + H(B.version || 'unknown') + '</span></div></div></div></div>' +
+    (same ? '' : '<div class="warn">The pages are version ' + H(APP_VERSION) + ' but your Google Apps Script is ' + H(B.version || 'an older version') + '. Paste the latest <b>app script.js</b> into Apps Script and redeploy (Deploy &gt; Manage deployments &gt; pencil &gt; New version &gt; Deploy).</div>') +
+    '<div class="card"><div class="bar"><h2>Version history</h2></div><ul class="tl">' + APP_VERSIONS.map((v, i) => '<li><h3>' + H(v.v) + ' &mdash; ' + H(v.title) + (i === 0 ? ' <span class="pill">Current</span>' : '') + '</h3>' + (v.date ? '<div class="mu" style="font-size:13px">' + H(v.date) + '</div>' : '') + '<ul>' + v.notes.map(n => '<li style="padding:0;list-style:disc">' + H(n) + '</li>').join('') + '</ul></li>').join('') + '</ul></div>' +
+    '<div class="card"><div class="bar"><h2>Built with</h2></div><p class="mu" style="margin:0">HTML, CSS and JavaScript pages with Google Sheets as the database and Google Apps Script as the backend. No server to install.</p></div>';
+})();
+</script>
+</body>
+</html>
