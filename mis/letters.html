@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generated Letters</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="letters.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('letters'); } catch (e) { return; }
+  const main = $id('main'), can = a => B.letters.l.indexOf(a) >= 0;
+  setTitle('Generated Letters', 'Open, download, print or delete saved letters');
+  if (!can('v')) { main.innerHTML = '<div class="card empty">You do not have access to generated letters.</div>'; return; }
+  let L = [], q = '';
+  try { L = (await get({ action: 'letters' })).letters; } catch (e) { fail(e); return; }
+  main.innerHTML = '<div class="card"><div class="bar"><h2>Letters (<span id="cnt"></span>)</h2><span class="sp"></span><input id="q" placeholder="Search letters..." style="margin:0;max-width:260px">' + (can('c') ? '<button class="btn" id="nw">+ Generate Letter</button>' : '') + '</div><div class="tw" id="tbl"></div></div>';
+  if (can('c')) $id('nw').onclick = () => nav('letter-generate.html');
+  const content = async id => (await get({ action: 'letter', id: id })).content;
+  function draw() {
+    const f = L.filter(l => !q || (l.no + ' ' + l.subject + ' ' + l.template + ' ' + l.by).toLowerCase().indexOf(q) >= 0);
+    $id('cnt').textContent = f.length;
+    $id('tbl').innerHTML = f.length ? '<table class="tbl"><tr><th>Letter No.</th><th>Subject</th><th>Template</th><th>Date</th><th>By</th><th class="ta">Action</th></tr>' + f.map(l =>
+      '<tr><td><b>' + H(l.no) + '</b></td><td>' + H(l.subject) + '</td><td>' + H(l.template) + '</td><td>' + H(fdate(l.date)) + '</td><td>' + H(l.by) + '</td><td class="ta" data-id="' + H(l.id) + '"><button class="vbtn" data-a="view">&#128065; View</button> <button class="ebtn" data-a="word">&#11015; Word</button> <button class="ebtn" data-a="pdf" style="background:#b91c1c">&#11015; PDF</button> <button class="vbtn" data-a="print" style="background:#64748b">&#128424;</button>' + (can('d') ? ' <button class="dbtn" data-a="del">&#128465;</button>' : '') + '</td></tr>').join('') + '</table>' : '<div class="empty">No letters found</div>';
+    $id('tbl').querySelectorAll('[data-a]').forEach(b => b.onclick = () => act(b, b.closest('td').dataset.id, b.dataset.a));
+  }
+  async function act(btn, id, a) {
+    const l = L.find(x => x.id === id);
+    if (a === 'del') return confirmBox('Delete letter?', 'Delete letter ' + l.no + ' permanently?', 'Delete', async () => { try { await post({ mode: 'letterDelete', id: id }); L = L.filter(x => x.id !== id); draw(); toast('Letter deleted'); } catch (e) { fail(e); } });
+    await withBusy(btn, async () => {
+      const c = await content(id);
+      if (a === 'word') downloadWord(l.no, c);
+      else if (a === 'pdf') await downloadPdf(l.no, c);
+      else if (a === 'print') printLetter(c);
+      else {
+        const o = modal('<div class="mh"><h3>' + H(l.no) + '</h3><button class="x" data-close>&times;</button></div><div class="paper" id="vp" style="padding:32px 36px"></div><div class="acts" style="margin-top:14px"><button class="btn g" data-close>Close</button><button class="btn" id="vw">&#11015; Word</button><button class="btn" id="vd">&#11015; PDF</button><button class="btn g" id="vpr">&#128424; Print</button></div>', true);
+        o.querySelector('#vp').innerHTML = wrapLetter(c);
+        o.querySelector('#vw').onclick = () => downloadWord(l.no, c);
+        o.querySelector('#vd').onclick = function () { withBusy(this, () => downloadPdf(l.no, c)); };
+        o.querySelector('#vpr').onclick = () => printLetter(c);
+      }
+    });
+  }
+  $id('q').oninput = e => { q = e.target.value.toLowerCase(); draw(); };
+  draw();
+})();
+</script>
+</body>
+</html>

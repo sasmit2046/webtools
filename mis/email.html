@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email Settings</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('email'); } catch (e) { return; }
+  const main = $id('main'); let D;
+  setTitle('Email Settings', 'Send record details to users by email');
+  if (B.user.role !== 'admin') { main.innerHTML = '<div class="card empty">Only administrators can open this page.</div>'; return; }
+
+  async function load() { try { D = await get({ action: 'emailcfg' }); } catch (e) { fail(e); return; } draw(); }
+  function draw() {
+    const g = D.email;
+    main.innerHTML =
+      '<div class="card"><div class="bar"><h2>Email delivery</h2><span class="sp"></span><b id="g_lbl"></b><label class="switch"><input type="checkbox" id="g_on"' + (g.enabled ? ' checked' : '') + '><span></span></label></div>' +
+      '<div class="grid3"><div><label>Sender name (shown as the sender)</label><input id="g_name" maxlength="60" value="' + H(g.senderName) + '" placeholder="e.g. ' + H((B.brand && B.brand.appName) || 'Admin Suite') + '"></div>' +
+      '<div><label>Reply-to address (optional)</label><input id="g_reply" type="email" value="' + H(g.replyTo) + '" placeholder="help@example.com"></div></div>' +
+      '<label>Footer text (added to every email)</label><input id="g_ft" maxlength="200" value="' + H(g.footer) + '">' +
+      '<div class="note">Emails are sent from the Google account that owns your Apps Script. Remaining quota today: <b>' + (D.quota == null ? 'unknown (run <code>authorizeEmail</code> once, see README)' : D.quota) + '</b>. ' +
+      '<b>' + D.recipients + '</b> user' + (D.recipients === 1 ? '' : 's') + ' currently ha' + (D.recipients === 1 ? 's' : 've') + ' <i>Receive email</i> turned on &mdash; change this in <a href="#" data-go="users.html">Users</a>.</div>' +
+      '<div class="bar"><button class="btn" id="g_sv">Save settings</button><span class="sp"></span><input id="t_to" type="email" placeholder="Send a test to (optional)" style="margin:0;max-width:260px"><button class="btn g" id="t_go" type="button">Send test email</button></div></div>' +
+      '<div class="card"><div class="bar"><h2>Modules</h2></div><div class="tw"><table class="tbl"><tr><th>Module</th><th>Email</th><th>Sent when</th><th>Fields</th><th>Roles</th><th class="ta">Action</th></tr>' +
+      D.modules.map((m, i) => { const c = m.cfg; return '<tr><td><b>' + H(m.icon + ' ' + m.name) + '</b></td><td>' + (c.enabled ? (g.enabled ? '<span class="ok">On</span>' : '<span class="mu">On (paused)</span>') : '<span class="mu">Off</span>') + '</td><td>' + [c.onAdd ? 'Created' : '', c.onUpdate ? 'Updated' : ''].filter(Boolean).join(', ') + '</td><td>' + (c.fields.length ? c.fields.length + ' of ' + m.fields.length : 'All') + '</td><td>' + (c.roles.length ? H(c.roles.join(', ')) : 'All roles') + '</td><td class="ta"><button class="ebtn" data-m="' + i + '">&#9998; Configure</button></td></tr>'; }).join('') + '</table></div></div>' +
+      '<div class="card"><div class="bar"><h2>Recent emails</h2></div>' + (D.log.length ? '<div class="tw"><table class="tbl"><tr><th>Time</th><th>Module</th><th>Record</th><th>To</th><th>Status</th></tr>' + D.log.map(l => '<tr><td>' + H(fdate(l.time)) + '</td><td>' + H(l.module) + '</td><td>' + H(l.record) + '</td><td>' + H(l.to) + '</td><td class="' + (l.status === 'Sent' ? 'ok' : 'bad') + '">' + H(l.status) + '</td></tr>').join('') + '</table></div>' : '<div class="empty">No emails sent yet</div>') + '</div>';
+    bindGo(main);
+    const lbl = () => { $id('g_lbl').textContent = $id('g_on').checked ? 'Emails ON' : 'Emails OFF'; $id('g_lbl').className = $id('g_on').checked ? 'ok' : 'mu'; };
+    $id('g_on').onchange = lbl; lbl();
+    $id('g_sv').onclick = async function () {
+      this.disabled = true;
+      try { await post({ mode: 'emailSave', cfg: JSON.stringify({ enabled: $id('g_on').checked, senderName: $id('g_name').value, replyTo: $id('g_reply').value, footer: $id('g_ft').value }) }); toast('Email settings saved'); await load(); }
+      catch (e) { fail(e); this.disabled = false; }
+    };
+    $id('t_go').onclick = async function () {
+      this.disabled = true; this.textContent = 'Sending...';
+      try { const j = await post({ mode: 'emailTest', to: $id('t_to').value.trim() }); toast('Test email sent to ' + j.to); await load(); }
+      catch (e) { fail(e); this.disabled = false; this.textContent = 'Send test email'; }
+    };
+    main.querySelectorAll('[data-m]').forEach(b => b.onclick = () => modForm(D.modules[b.dataset.m]));
+  }
+
+  function modForm(m) {
+    const c = m.cfg, chk = (cls, v, on, txt) => '<label class="chk"><input type="checkbox" class="' + cls + '" data-v="' + H(v) + '"' + (on ? ' checked' : '') + '> ' + H(txt) + '</label>';
+    const o = modal('<form id="mf"><div class="mh"><h3>' + H(m.icon + ' ' + m.name) + ' &mdash; email</h3><button type="button" class="x" data-close>&times;</button></div>' +
+      '<label class="chk"><input type="checkbox" id="m_on"' + (c.enabled ? ' checked' : '') + '> Send emails for this module</label>' +
+      '<label>Email subject</label><input id="m_sub" maxlength="150" value="' + H(c.subject) + '"><div class="mu" style="font-size:12px;margin:-8px 0 14px">You can use {module}, {id}, {user}, {app} and any field name, for example {' + H(m.fields[0] ? m.fields[0].label : 'Name') + '}</div>' +
+      '<label>Send an email when a record is</label><div style="display:flex;gap:20px">' + chk('w_add', 'add', c.onAdd, 'Created') + chk('w_upd', 'upd', c.onUpdate, 'Updated') + '</div>' +
+      '<label>Fields included by default (the person saving a record can still change this). Leave all unticked to include every field.</label><div class="chks">' + m.fields.map(f => chk('m_f', f.key, c.fields.indexOf(f.key) >= 0, f.label)).join('') + '</div>' +
+      '<label>Send to these roles only (users also need Receive email ON and permission to open the module). Leave all unticked for every role.</label><div class="chks">' + D.roles.map(r => chk('m_r', r, c.roles.indexOf(r) >= 0, r)).join('') + '</div>' +
+      '<label class="chk"><input type="checkbox" id="m_skip"' + (c.skipSelf ? ' checked' : '') + '> Do not email the person who saved the record</label>' +
+      '<div class="acts"><button type="button" class="btn g" data-close>Cancel</button><button class="btn" id="m_sv">Save</button></div></form>');
+    o.querySelector('#mf').onsubmit = async e => {
+      e.preventDefault(); const b = o.querySelector('#m_sv'); b.disabled = true;
+      const vals = cls => [...o.querySelectorAll('.' + cls + ':checked')].map(x => x.dataset.v);
+      try { await post({ mode: 'emailModSave', module: m.slug, cfg: JSON.stringify({ enabled: o.querySelector('#m_on').checked, subject: o.querySelector('#m_sub').value, onAdd: o.querySelector('.w_add').checked, onUpdate: o.querySelector('.w_upd').checked, fields: vals('m_f'), roles: vals('m_r'), skipSelf: o.querySelector('#m_skip').checked }) }); o.remove(); toast('Saved'); await freshBoot(); load(); }
+      catch (err) { fail(err); b.disabled = false; }
+    };
+  }
+  load();
+})();
+</script>
+</body>
+</html>

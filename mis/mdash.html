@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module Dashboard</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="charts.js"></script>
+<script>
+(async () => {
+  const slug = new URLSearchParams(location.search).get('m') || 'contacts';
+  let B; try { B = await initShell('m:' + slug); } catch (e) { return; }
+  const m = B.modules.find(x => x.slug === slug), main = $id('main');
+  if (!m) { setTitle('Not found'); main.innerHTML = '<div class="card empty">This module does not exist or you do not have access to it.</div>'; return; }
+  setTitle(m.icon + ' ' + m.name, 'Dashboard');
+  const admin = B.user.role === 'admin';
+  main.innerHTML = '<div class="tabs"><a class="tab" href="#" data-go="crud.html?m=' + encodeURIComponent(slug) + '">&#128203; Records</a><a class="tab on" href="#">&#128202; Dashboard</a></div>' +
+    '<div class="bar"><h2>' + H(m.name) + ' dashboard</h2><span class="sp"></span>' + (admin ? '<button class="btn" id="aw">+ Add widget</button>' : '') + '</div><div class="wg" id="wg"><div class="card empty w3">Loading...</div></div>';
+  bindGo(main);
+  let rows = [], W = [];
+  try { const r = await Promise.all([get({ action: 'list', module: slug }), get({ action: 'widgets', module: slug })]); rows = r[0].data; W = r[1].widgets; } catch (e) { fail(e); return; }
+  if (!W.length) W = defaults();
+
+  function defaults() {
+    const d = [{ id: 'd1', type: 'stat', title: 'Total records', agg: 'count', span: 1, field: '', valueField: '', color: '' }];
+    const nf = m.fields.find(f => f.type === 'number'), cat = m.fields.find(f => f.type === 'select' || f.type === 'lookup');
+    if (nf) d.push({ id: 'd2', type: 'stat', title: 'Total ' + nf.label, agg: 'sum', valueField: nf.key, span: 1, field: '', color: '#10b981' });
+    if (cat) d.push({ id: 'd3', type: 'pie', title: 'By ' + cat.label, field: cat.key, agg: 'count', span: 1, valueField: '', color: '' });
+    if (rows.some(r => r.Date)) d.push({ id: 'd4', type: 'line', title: 'Records per month', field: 'Date', agg: 'count', span: 2, valueField: '', color: '' });
+    d.push({ id: 'd5', type: 'table', title: 'Latest records', field: '', agg: 'count', span: 3, valueField: '', color: '' });
+    return d;
+  }
+  async function persist() {
+    try { const j = await post({ mode: 'widgetsSave', module: slug, widgets: JSON.stringify(W) }); W = j.widgets; toast('Dashboard saved'); } catch (e) { fail(e); }
+    draw();
+  }
+  function draw() {
+    $id('wg').innerHTML = W.map((w, i) => '<div class="card wc w' + w.span + '"><div class="ch"><h3>' + H(w.title) + '</h3>' + (admin ? '<div class="ctl"><button class="ib" data-a="up" data-i="' + i + '" title="Move up">&#9650;</button><button class="ib" data-a="dn" data-i="' + i + '" title="Move down">&#9660;</button><button class="ib" data-a="ed" data-i="' + i + '" title="Edit">&#9998;</button><button class="ib" data-a="del" data-i="' + i + '" title="Delete">&#10005;</button></div>' : '') + '</div>' + widgetHTML(w, rows, m) + '</div>').join('') || '<div class="card empty w3">No widgets yet.' + (admin ? ' Click "Add widget" to create one.' : '') + '</div>';
+    $id('wg').querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+      const i = +b.dataset.i, a = b.dataset.a;
+      if (a === 'ed') return wForm(W[i], i);
+      if (a === 'del') return confirmBox('Delete widget?', 'Remove "' + W[i].title + '" from this dashboard?', 'Delete', async () => { W.splice(i, 1); await persist(); });
+      const j = a === 'up' ? i - 1 : i + 1; if (j < 0 || j >= W.length) return;
+      const t = W[i]; W[i] = W[j]; W[j] = t; persist();
+    });
+  }
+
+  function wForm(w, idx) {
+    const cat = m.fields.find(f => f.type === 'select' || f.type === 'lookup') || m.fields.find(f => f.type !== 'textarea');
+    w = Object.assign({ id: '', type: 'bar', title: '', field: cat ? cat.key : '', agg: 'count', valueField: '', span: 1, color: '' }, w || {});
+    const gf = m.fields.filter(f => f.type !== 'textarea').map(f => [f.key, f.label]).concat([['Date', 'Date added (by month)']]);
+    const nf = m.fields.filter(f => f.type === 'number').map(f => [f.key, f.label]);
+    const opt = (list, cur) => list.map(x => '<option value="' + H(x[0]) + '"' + (x[0] === cur ? ' selected' : '') + '>' + H(x[1]) + '</option>').join('');
+    const o = modal('<form id="wf"><div class="mh"><h3>' + (idx < 0 ? 'Add' : 'Edit') + ' widget</h3><button type="button" class="x" data-close>&times;</button></div>' +
+      '<label>Title *</label><input id="w_t" required value="' + H(w.title) + '" placeholder="e.g. Records by department">' +
+      '<div class="grid3"><div><label>Widget type</label><select id="w_ty">' + opt([['stat', 'Number card'], ['bar', 'Bar chart'], ['pie', 'Pie chart'], ['line', 'Line chart'], ['table', 'Latest records']], w.type) + '</select></div>' +
+      '<div><label>Width</label><select id="w_sp">' + opt([['1', 'Small (1/3)'], ['2', 'Medium (2/3)'], ['3', 'Full width']], String(w.span)) + '</select></div></div>' +
+      '<div id="w_g"><label>Group by</label><select id="w_f">' + opt(gf, w.field) + '</select></div>' +
+      '<div class="grid3" id="w_a"><div><label>Calculate</label><select id="w_ag">' + opt([['count', 'Count of records'], ['sum', 'Sum of a number field'], ['avg', 'Average of a number field']], w.agg) + '</select></div>' +
+      '<div id="w_v"><label>Number field</label><select id="w_vf">' + (nf.length ? opt(nf, w.valueField) : '<option value="">(this module has no number fields)</option>') + '</select></div></div>' +
+      '<div id="w_c"><label class="chk"><input type="checkbox" id="w_dc"' + (w.color ? '' : ' checked') + '> Use the theme colour</label><input type="color" id="w_col" value="' + H(w.color || '#6366f1') + '" style="width:60px;height:36px;padding:2px"></div>' +
+      '<div class="acts"><button type="button" class="btn g" data-close>Cancel</button><button class="btn" id="w_sv">' + (idx < 0 ? 'Add widget' : 'Save') + '</button></div></form>');
+    const show = (id, on) => o.querySelector(id).style.display = on ? '' : 'none';
+    const sync = () => {
+      const t = o.querySelector('#w_ty').value, a = o.querySelector('#w_ag').value;
+      show('#w_g', t === 'bar' || t === 'pie' || t === 'line'); show('#w_a', t !== 'table'); show('#w_v', t !== 'table' && a !== 'count');
+      show('#w_c', t !== 'pie' && t !== 'table'); o.querySelector('#w_col').disabled = o.querySelector('#w_dc').checked;
+    };
+    o.querySelectorAll('select,#w_dc').forEach(e => e.addEventListener('change', sync)); sync();
+    o.querySelector('#wf').onsubmit = async e => {
+      e.preventDefault();
+      let ag = o.querySelector('#w_ag').value, vf = o.querySelector('#w_vf').value; if (ag !== 'count' && !vf) ag = 'count';
+      const nw = { id: w.id, type: o.querySelector('#w_ty').value, title: o.querySelector('#w_t').value.trim(), span: Number(o.querySelector('#w_sp').value), field: o.querySelector('#w_f').value, agg: ag, valueField: vf, color: o.querySelector('#w_dc').checked ? '' : o.querySelector('#w_col').value };
+      if (idx < 0) W.push(nw); else W[idx] = nw;
+      o.remove(); await persist();
+    };
+  }
+  if (admin) $id('aw').onclick = () => wForm(null, -1);
+  draw();
+})();
+</script>
+</body>
+</html>

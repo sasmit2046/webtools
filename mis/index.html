@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loading...</title>
+<noscript><meta http-equiv="refresh" content="0;url=login.html"></noscript>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="splash">
+  <img id="lg" alt="" hidden style="width:84px;height:84px;object-fit:contain;border-radius:16px;background:#fff;padding:6px;border:1px solid var(--bd)">
+  <h2 id="an">Loading...</h2>
+  <div class="spin"></div>
+  <noscript><a href="login.html">Continue to sign in</a></noscript>
+</div>
+<script>
+/* Start page: opens the dashboard when you are already signed in, otherwise the login page. */
+let b = {}; try { b = JSON.parse(localStorage.getItem('brand') || '{}'); } catch (e) {}
+document.getElementById('an').textContent = b.appName || 'Admin Suite'; document.title = b.appName || 'Admin Suite';
+if (b.logo) { const i = document.getElementById('lg'); i.src = b.logo; i.hidden = false; }
+const tk = sessionStorage.getItem('tk');
+const target = tk ? 'dashboard.html#t=' + encodeURIComponent(tk) + '&n=' + encodeURIComponent(sessionStorage.getItem('who') || '') + '&th=' + document.documentElement.getAttribute('data-theme') : 'login.html';
+setTimeout(() => location.replace(target), 350);
+</script>
+</body>
+</html>

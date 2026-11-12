@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Letter Templates</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="letters.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('ltpl'); } catch (e) { return; }
+  const main = $id('main'), can = a => B.letters.t.indexOf(a) >= 0, canGen = B.letters.l.indexOf('c') >= 0;
+  setTitle('Letter Templates', 'Design letters using the columns of your CRUD modules');
+  if (!can('v')) { main.innerHTML = '<div class="card empty">You do not have access to letter templates.</div>'; return; }
+  const modName = s => { const m = B.modules.find(x => x.slug === s); return m ? m.name : s; };
+  let T = [];
+  async function load() { try { T = (await get({ action: 'ltemplates' })).templates; } catch (e) { fail(e); return; } draw(); }
+  function draw() {
+    main.innerHTML = '<div class="card"><div class="bar"><h2>Templates (' + T.length + ')</h2><span class="sp"></span>' + (can('c') ? '<button class="btn" id="nw">+ New Template</button>' : '') + '</div>' +
+      (T.length ? '<div class="tw"><table class="tbl"><tr><th>Name</th><th>Subject</th><th>Data from</th><th>Number</th><th class="ta">Action</th></tr>' + T.map((t, i) =>
+        '<tr><td><b>' + H(t.name) + '</b></td><td>' + H(t.title) + '</td><td>' + t.sources.map(s => H(modName(s))).join(', ') + '</td><td>' + H(t.prefix) + '/&hellip;</td><td class="ta">' +
+        (canGen ? '<button class="vbtn" data-u="' + i + '">&#9997; Use</button> ' : '') + (can('e') ? '<button class="ebtn" data-e="' + i + '">&#9998; Edit</button> ' : '') + (can('c') ? '<button class="vbtn" data-c="' + i + '" style="background:#64748b">Copy</button> ' : '') + (can('d') ? '<button class="dbtn" data-d="' + i + '">&#128465; Delete</button>' : '') + '</td></tr>').join('') + '</table></div>' :
+        '<div class="empty">No templates yet.' + (can('c') ? ' Click "New Template" to create the first one.' : '') + '</div>') + '</div>' +
+      '<div class="card"><b>How it works</b><ol class="mu" style="margin:8px 0 0;padding-left:20px"><li>Create a template: choose the CRUD module(s) whose records the letter will use.</li><li>Every column becomes a clickable field. Click one to insert it as <code>{{ Field Name }}</code> where your cursor is.</li><li>Open <b>Generate Letter</b>, pick the template and the records, preview, edit if needed and save. Saved letters can be downloaded as Word or PDF.</li></ol></div>';
+    if (can('c')) $id('nw').onclick = () => tForm();
+    main.querySelectorAll('[data-u]').forEach(b => b.onclick = () => nav('letter-generate.html?t=' + encodeURIComponent(T[b.dataset.u].id)));
+    main.querySelectorAll('[data-e]').forEach(b => b.onclick = () => tForm(T[b.dataset.e]));
+    main.querySelectorAll('[data-c]').forEach(b => b.onclick = () => tForm(T[b.dataset.c], true));
+    main.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { const t = T[b.dataset.d]; confirmBox('Delete template?', 'Delete "' + t.name + '"? Letters already generated from it are kept.', 'Delete', async () => { try { await post({ mode: 'ltDelete', id: t.id }); toast('Template deleted'); load(); } catch (e) { fail(e); } }); });
+  }
+
+  function tForm(t, dup) {
+    t = Object.assign({ id: '', name: '', title: '', sources: [B.modules[0] ? B.modules[0].slug : ''], body: '', header: '', footer: '', signature: '', letterhead: true, prefix: 'LTR' }, t || {});
+    if (dup) { t.id = ''; t.name += ' (copy)'; }
+    const mods = B.modules;
+    const o = modal('<form id="tf"><div class="mh"><h3>' + (t.id ? 'Edit' : 'New') + ' letter template</h3><button type="button" class="x" data-close>&times;</button></div>' +
+      '<div class="grid3"><div><label>Template name *</label><input id="t_n" required maxlength="80" value="' + H(t.name) + '"></div><div><label>Letter number prefix (e.g. HR gives HR/2026/0001)</label><input id="t_p" maxlength="12" value="' + H(t.prefix) + '"></div></div>' +
+      '<label>Letter subject (fields allowed)</label><input id="t_t" maxlength="200" value="' + H(t.title) + '" placeholder="e.g. Appointment of {{ Full Name }}">' +
+      '<div class="grid3"><div><label>Primary data module *</label><select id="t_m">' + mods.map(m => '<option value="' + H(m.slug) + '"' + (m.slug === t.sources[0] ? ' selected' : '') + '>' + H(m.icon + ' ' + m.name) + '</option>').join('') + '</select></div>' +
+      '<div><label>More modules (optional)</label><div class="chks" id="t_x"></div></div></div>' +
+      '<label>Fields &mdash; generated from the module columns. Click a field to insert it at your cursor.</label><div class="fbox" id="t_f"></div>' +
+      '<label>Letter body</label><div class="tbar" id="t_tb">' + [['bold', 'B'], ['italic', 'I'], ['underline', 'U'], ['justifyLeft', '&#8676;'], ['justifyCenter', '&#8596;'], ['justifyRight', '&#8677;'], ['justifyFull', '&#9776;'], ['insertUnorderedList', '&bull; List'], ['insertOrderedList', '1. List']].map(c => '<button type="button" class="tb" data-c="' + c[0] + '">' + c[1] + '</button>').join('') +
+      '<button type="button" class="tb" data-c="formatBlock" data-v="h3">Heading</button><button type="button" class="tb" data-c="formatBlock" data-v="p">Text</button><button type="button" class="tb" id="t_tbl">Table of all fields</button></div>' +
+      '<div class="editor" id="t_b" contenteditable="true"></div>' +
+      '<label class="chk"><input type="checkbox" id="t_l"' + (t.letterhead ? ' checked' : '') + '> Print the letterhead (logo from Settings and organisation name)</label>' +
+      '<div class="grid3"><div><label>Letterhead lines (optional, one per line; empty = organisation + app name)</label><textarea id="t_h" rows="3" maxlength="300">' + H(t.header) + '</textarea></div><div><label>Signature block (fields allowed)</label><textarea id="t_s" rows="3" maxlength="500" placeholder="Sincerely,&#10;{{ user }}">' + H(t.signature) + '</textarea></div></div>' +
+      '<label>Footer line</label><input id="t_ft" maxlength="300" value="' + H(t.footer) + '">' +
+      '<div class="acts"><button type="button" class="btn g" data-close>Cancel</button><button class="btn" id="t_sv">Save template</button></div></form>', true);
+    const q = s => o.querySelector(s), ed = q('#t_b'), primary = () => q('#t_m').value;
+    ed.innerHTML = sanitizeHTML(t.body);
+    let extra = t.sources.slice(1);
+    const srcs = () => [primary()].concat([...o.querySelectorAll('.t_x:checked')].map(c => c.dataset.v));
+    function renderExtra() {
+      const cur = o.querySelectorAll('.t_x').length ? [...o.querySelectorAll('.t_x:checked')].map(c => c.dataset.v) : extra;   // keep the ticks when the primary module changes
+      extra = cur.filter(s => s !== primary());
+      q('#t_x').innerHTML = mods.filter(m => m.slug !== primary()).map(m => '<label class="chk"><input type="checkbox" class="t_x" data-v="' + H(m.slug) + '"' + (extra.indexOf(m.slug) >= 0 ? ' checked' : '') + '> ' + H(m.name) + '</label>').join('') || '<span class="mu">No other modules</span>';
+    }
+    function renderChips() {
+      const chip = (tk, label) => '<button type="button" class="fc" data-t="' + H('{{ ' + tk + ' }}') + '">' + H(label) + '</button>';
+      q('#t_f').innerHTML = srcs().map((s, i) => {
+        const m = mods.find(x => x.slug === s); if (!m) return ''; const pre = i === 0 ? '' : m.slug + '.';
+        return '<div class="fgrp"><b>' + H(m.name) + (i === 0 ? ' (primary module)' : ' &mdash; written as ' + H(m.slug) + '.Field') + '</b>' + m.fields.map(f => chip(pre + f.label, f.label)).join('') + chip(pre + 'ID', 'ID') + chip(pre + 'Created By', 'Created By') + '</div>';
+      }).join('') + '<div class="fgrp"><b>System fields</b>' + SYS_TOKENS.map(k => chip(k, k)).join('') + '</div>';
+    }
+    renderExtra(); renderChips();
+    q('#t_m').onchange = () => { renderExtra(); renderChips(); };
+    q('#t_x').addEventListener('change', renderChips);
+    o.addEventListener('mousedown', e => { if (e.target.closest('.fc,.tb')) e.preventDefault(); });   // keep the cursor where it is
+    o.addEventListener('click', e => {
+      const c = e.target.closest('.fc'), tb = e.target.closest('.tb[data-c]');
+      if (c) {
+        const a = document.activeElement, txt = c.dataset.t;
+        if (a && o.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a.type !== 'checkbox') a.setRangeText(txt, a.selectionStart, a.selectionEnd, 'end');
+        else { ed.focus(); document.execCommand('insertText', false, txt); }
+      }
+      if (tb) { ed.focus(); document.execCommand(tb.dataset.c, false, tb.dataset.v || null); }
+    });
+    q('#t_tbl').onclick = () => {
+      const m = mods.find(x => x.slug === primary()); if (!m) return;
+      ed.focus();
+      document.execCommand('insertHTML', false, '<table style="border-collapse:collapse;width:100%">' + m.fields.map(f => '<tr><td style="border:1px solid #333;padding:4px 8px;font-weight:bold">' + H(f.label) + '</td><td style="border:1px solid #333;padding:4px 8px">{{ ' + H(f.label) + ' }}</td></tr>').join('') + '</table><p><br></p>');
+    };
+    q('#tf').onsubmit = async e => {
+      e.preventDefault();
+      if (!ed.textContent.trim()) { toast('The letter body is empty', true); return; }
+      const b = q('#t_sv'); b.disabled = true; b.textContent = 'Saving...';
+      try {
+        await post({ mode: 'ltSave', id: t.id, name: q('#t_n').value, title: q('#t_t').value, sources: JSON.stringify(srcs()), body: sanitizeHTML(ed.innerHTML).trim(), header: q('#t_h').value, footer: q('#t_ft').value, signature: q('#t_s').value, letterhead: q('#t_l').checked ? 'Yes' : 'No', prefix: q('#t_p').value.trim() });
+        o.remove(); toast('Template saved'); load();
+      } catch (err) { fail(err); b.disabled = false; b.textContent = 'Save template'; }
+    };
+  }
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generate Letter</title>
+<script src="theme.js"></script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="main"></main>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="letters.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+(async () => {
+  let B; try { B = await initShell('lgen'); } catch (e) { return; }
+  const main = $id('main');
+  setTitle('Generate Letter', 'Choose a template and the records to fill it');
+  if (B.letters.l.indexOf('c') < 0) { main.innerHTML = '<div class="card empty">You do not have permission to generate letters.</div>'; return; }
+  let T = []; try { T = (await get({ action: 'ltemplates' })).templates; } catch (e) { fail(e); return; }
+  const mods = {}; B.modules.forEach(m => mods[m.slug] = m);
+  const cache = {};
+  main.innerHTML = '<div class="card" id="s1"><div class="bar"><h2>1. Choose template and records</h2></div>' + (T.length ?
+    '<label>Letter template</label><select id="g_t">' + T.map(t => '<option value="' + H(t.id) + '">' + H(t.name) + '</option>').join('') + '</select><div id="g_s"></div>' +
+    '<label>Subject (you can edit it; fields like {{ Name }} are filled in)</label><input id="g_sub" maxlength="200"><button class="btn" id="g_go">Generate preview</button>' :
+    '<div class="empty">There are no letter templates yet. Ask an administrator to create one in <b>Letter Templates</b>.</div>') + '</div><div id="s2"></div>';
+  if (!T.length) return;
+
+  const tpl = () => T.find(t => t.id === $id('g_t').value);
+  const label = (m, r) => '#' + r.ID + ' \u00b7 ' + (m.fields.slice(0, 2).map(f => r[f.key]).filter(Boolean).join(' \u00b7 ') || '(no data)');
+  async function pick() {
+    const t = tpl(); $id('g_sub').value = t.title;
+    $id('g_s').innerHTML = t.sources.map((s, i) => mods[s]
+      ? '<label>Record from ' + H(mods[s].name) + (i === 0 ? ' (primary)' : '') + '</label><select class="rs" data-s="' + H(s) + '"><option value="">Loading...</option></select>'
+      : '<div class="note">This template uses the module "' + H(s) + '" but you do not have access to it. Ask an administrator to give your role View permission.</div>').join('');
+    for (const s of t.sources) {
+      if (!mods[s]) continue;
+      if (!cache[s]) { try { cache[s] = (await get({ action: 'list', module: s })).data; } catch (e) { fail(e); cache[s] = []; } }
+      const sel = main.querySelector('.rs[data-s="' + s + '"]'); if (!sel) continue;
+      const rows = cache[s].slice().sort((a, b) => Number(b.ID) - Number(a.ID));
+      sel.innerHTML = '<option value="">&mdash; Select a record &mdash;</option>' + rows.map(r => '<option value="' + H(r.ID) + '">' + H(label(mods[s], r)) + '</option>').join('');
+    }
+  }
+  $id('g_t').onchange = pick;
+  const want = new URLSearchParams(location.search).get('t'); if (want && T.some(t => t.id === want)) $id('g_t').value = want;
+  pick();
+
+  $id('g_go').onclick = () => {
+    const t = tpl(), recs = {};
+    if (t.sources.some(s => !mods[s])) { toast('You do not have access to every module this template uses', true); return; }
+    for (const s of t.sources) { const sel = main.querySelector('.rs[data-s="' + s + '"]'); if (!sel || !sel.value) { toast('Choose a record for every module', true); return; } recs[s] = cache[s].find(r => String(r.ID) === sel.value); }
+    const ctx = makeCtx(t, recs, mods), subj = fillTemplate($id('g_sub').value || t.title || t.name, ctx, true), body = fillTemplate(sanitizeHTML(t.body), ctx);
+    const content = buildLetter(t, body.html, subj.text, ctx), missing = body.missing.concat(subj.missing.filter(x => body.missing.indexOf(x) < 0));
+    const ids = {}; Object.keys(recs).forEach(s => ids[s] = recs[s].ID);
+    preview(t, content, subj.text, ids, missing);
+  };
+
+  function preview(t, content, subject, ids, missing) {
+    $id('s1').style.display = 'none';
+    $id('s2').innerHTML = '<div class="card"><div class="bar"><h2>2. Preview and save</h2><span class="sp"></span><button class="btn g" id="bk">&larr; Back</button></div>' +
+      (missing.length ? '<div class="warn">These fields could not be filled and are highlighted: ' + missing.map(m => '<code>{{ ' + H(m) + ' }}</code>').join(', ') + '. Fix them in the letter below or in the template.</div>' : '') +
+      '<p class="mu" style="margin-top:0">You can click inside the letter to edit the text before saving. The letter number is added automatically when you save.</p>' +
+      '<div class="paper" id="paper" contenteditable="true"></div><div class="acts" style="margin-top:16px"><button class="btn" id="sv">Save letter</button></div></div><div id="done"></div>';
+    $id('paper').innerHTML = wrapLetter(content);
+    $id('bk').onclick = () => { $id('s2').innerHTML = ''; $id('s1').style.display = ''; };
+    $id('sv').onclick = async function () {
+      const html = sanitizeHTML(stripLogo($id('paper').innerHTML));
+      if (/\{\{(?:\s|&nbsp;)*[^{}<>]*?(?:\s|&nbsp;)*\}\}/.test(html.replace(/\{\{letter_no\}\}/g, '')) && !confirm('Some {{ fields }} are still not filled in. Save the letter anyway?')) return;
+      this.disabled = true; this.textContent = 'Saving...';
+      try {
+        const j = await post({ mode: 'letterSave', tid: t.id, subject: subject, records: JSON.stringify(ids), content: html });
+        const finalHtml = html.replace(/\{\{letter_no\}\}/g, j.no);
+        $id('paper').contentEditable = 'false'; $id('paper').innerHTML = wrapLetter(finalHtml); this.style.display = 'none';
+        $id('done').innerHTML = '<div class="okbox"><b>Letter saved as ' + H(j.no) + '</b> &mdash; stored in the "letters" sheet tab.<div class="dlrow" style="margin-top:12px"><button class="btn" id="dw">&#11015; Download Word</button><button class="btn" id="dp">&#11015; Download PDF</button><button class="btn g" id="dpr">&#128424; Print</button><button class="btn g" id="dn">+ New letter</button><button class="btn g" id="dg">Open Generated Letters</button></div></div>';
+        $id('dw').onclick = () => downloadWord(j.no, finalHtml);
+        $id('dp').onclick = function () { withBusy(this, () => downloadPdf(j.no, finalHtml)); };
+        $id('dpr').onclick = () => printLetter(finalHtml);
+        $id('dn').onclick = () => location.reload();
+        $id('dg').onclick = () => nav('letters.html');
+        toast('Letter saved: ' + j.no);
+        $id('done').scrollIntoView({ behavior: 'smooth' });
+      } catch (e) { fail(e); this.disabled = false; this.textContent = 'Save letter'; }
+    };
+  }
+})();
+</script>
+</body>
+</html>
